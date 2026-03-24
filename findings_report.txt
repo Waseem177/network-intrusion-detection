@@ -1,0 +1,58 @@
+
+╔══════════════════════════════════════════════════════════════════════╗
+║   INCIDENT DETECTION REPORT — AUTOMATED NETWORK TRAFFIC PROFILING    ║
+║   Dataset: CICIDS2017 | File: Friday Afternoon DDoS                  ║
+║   Analyst: Mohamed Waseem | Tool: Python-based Threat Hunting Engine ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+── EXECUTIVE SUMMARY ────────────────────────────────────────────────────
+A total of 225,745 network flows were analysed from a controlled lab
+environment simulating a real-world DDoS attack scenario. The automated
+threat hunting engine successfully identified anomalous traffic patterns
+using 5 rule-based detection signatures.
+
+── DATASET OVERVIEW ─────────────────────────────────────────────────────
+  Total flows analysed  : 225,745
+  DDoS attack flows     : 128,027  (56.7%)
+  Benign flows          : 97,718   (43.3%)
+  Attack type           : DDoS LOIT (15:56 – 16:16)
+  Attacker IPs          : 205.174.165.69 / .70 / .71
+  Victim IP             : 205.174.165.68 (192.168.10.50)
+
+── DETECTION RULES (MITRE ATT&CK MAPPED) ────────────────────────────────
+  Rule 1 — HIGH_PACKET_RATE   : Flow Packets/s > 1,000
+           → MITRE T1498: Network Denial of Service
+  Rule 2 — HIGH_BYTE_RATE     : Flow Bytes/s > 100,000
+           → MITRE T1498.001: Direct Network Flood
+  Rule 3 — SHORT_BURST_FLOOD  : Duration < 5000µs & Fwd Packets > 50
+           → MITRE T1499: Endpoint Denial of Service
+  Rule 4 — SYN_FLOOD          : SYN > 1 & ACK = 0
+           → MITRE T1498.001: Direct Network Flood
+  Rule 5 — ONE_WAY_FLOOD      : No backward packets & Fwd Packets > 20
+           → MITRE T1498: Network Denial of Service
+
+── DETECTION RESULTS ────────────────────────────────────────────────────
+  Total alerts generated : 45,514
+  Top alert type         : HIGH_PACKET_RATE + HIGH_BYTE_RATE (23,097)
+  Rule trigger counts    : High Byte Rate=40,627 | High Packet Rate=27,909
+
+── KEY FINDINGS ─────────────────────────────────────────────────────────
+  1. DDoS traffic showed near-zero backward packets — attackers sent
+     floods without waiting for server responses, a classic indicator.
+  2. Flow Packets/s and Flow Bytes/s were the strongest discriminators
+     between attack and benign traffic.
+  3. Rule-based detection achieved 37% accuracy — demonstrating the
+     fundamental limitation of static thresholds against adaptive attacks.
+  4. Correlation analysis showed Flow Duration strongly correlates with
+     IAT Mean (0.80) — useful feature for future ML model training.
+
+── LIMITATIONS & NEXT STEPS ─────────────────────────────────────────────
+  - Rule-based detection fails against low-and-slow attacks and zero-days
+  - Recommended next step: Train LSTM/Autoencoder on these features
+  - Explainable AI (SHAP) to make alerts actionable for SOC analysts
+  - Map detections into a SIEM dashboard for real-time monitoring
+
+── FILES GENERATED ──────────────────────────────────────────────────────
+  security_dashboard.png  — 4-panel visual dashboard
+  security_heatmap.png    — correlation heatmap + feature comparison
+  threat_alerts.csv       — 45,514 flagged flows with threat labels

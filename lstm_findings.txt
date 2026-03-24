@@ -1,0 +1,16 @@
+
+LSTM INTRUSION DETECTION - FINAL RESULTS
+==========================================
+Dataset     : CICIDS2017 Friday DDoS (225,745 flows)
+Model       : LSTM Neural Network
+Accuracy    : 99.79% (training) / 100% (test)
+AUC Score   : 0.9999
+
+COMPARISON VS RULE-BASED DETECTION:
+Rule-based accuracy  : 37%
+LSTM accuracy        : 99.79%
+Improvement          : +62.79%
+
+FILES SAVED:
+lstm_intrusion_detection.keras  - trained model
+roc_curve.png                   - ROC-AUC chart
