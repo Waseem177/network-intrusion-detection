@@ -1,54 +1,82 @@
-# Automated Network Intrusion Detection System
-### Rule-Based Detection vs LSTM Neural Network
+# Explainable LSTM-Based Network Intrusion Detection System
+**Rule-Based vs LSTM vs Cross-Attack Generalisation with SHAP**
 
-**Dataset:** CICIDS2017 — Friday Afternoon DDoS  
 **Institution:** Sathyabama Institute of Science and Technology  
-**Department:** Computer Science and Engineering
+**Department:** Computer Science and Engineering  
+**Author:** Mohamed Waseem  
+**Dataset:** CICIDS2017 — Canadian Institute for Cybersecurity  
 
 ---
 
 ## What This Project Does
 
-This project builds and compares two approaches to detecting DDoS attacks in real network traffic:
+This project builds and compares two approaches to detecting network attacks, 
+then investigates whether an AI model trained on one attack type can detect 
+attacks it has never seen — explained using SHAP.
 
-- **Phase 1 — Rule-Based Detection:** A Python script that analyses network flows and flags suspicious traffic using 5 detection rules mapped to MITRE ATT&CK techniques.
-- **Phase 2 — LSTM Neural Network:** A deep learning model trained on the same data to learn attack patterns automatically — without any hardcoded rules.
-
-The goal was to prove, with real data, that AI-based detection significantly outperforms rule-based detection.
+- **Phase 1 — Rule-Based Detection:** 5 detection rules mapped to MITRE ATT&CK
+- **Phase 2 — LSTM Neural Network:** Deep learning trained on DDoS traffic
+- **Phase 3 — SHAP Explainability:** Opens the black box for SOC analysts
+- **Phase 4 — Cross-Attack Generalisation:** Zero-day detection experiment
 
 ---
 
 ## Results
 
+### Phase 1 vs Phase 2
+
 | Metric | Rule-Based | LSTM | Improvement |
-|--------|-----------|------|-------------|
-| Accuracy | 37.0% | 99.79% | +62.79% |
+|---|---|---|---|
+| Accuracy | 37.0% | 99.75% | +62.75% |
 | Precision | 36.0% | 100.0% | +64.0% |
 | Recall | 41.0% | 99.5% | +58.5% |
 | F1-Score | 34.0% | 100.0% | +66.0% |
-| AUC Score | ~0.50 | 0.9999 | +0.4999 |
+| AUC | ~0.50 | 0.9999 | +0.4999 |
 
-Both phases were tested on the **same 225,745 real network flows** — making this a direct, fair comparison.
+Both tested on the same 225,745 real network flows — a direct, fair comparison.
+
+### Phase 4 — Cross-Attack Generalisation (Zero-Day Experiment)
+
+Model trained on DDoS only. Tested on 4 unseen attack types:
+
+| Attack Type | Accuracy | AUC | F1 | Generalises? |
+|---|---|---|---|---|
+| DoS (Wednesday) | 77.0% | 0.70 | 0.54 | ✅ Partially |
+| Brute Force (Tuesday) | 96.8% | 0.45 | 0.00 | ❌ No |
+| Web Attacks (Thursday) | 98.6% | 0.37 | 0.00 | ❌ No |
+| Port Scan (Friday) | 44.5% | 0.55 | 0.00 | ❌ No |
+
+---
+
+## Key Finding
+
+SHAP analysis reveals the model over-relies on **ACK Flag Count** — a 
+DDoS-specific signature. DoS is partially detected due to volumetric 
+similarity. Application-layer attacks (brute force, web attacks) share 
+no overlapping feature signatures with DDoS, causing complete detection 
+failure. SHAP makes this failure mode visible and actionable for security teams.
 
 ---
 
 ## Dataset
 
 **CICIDS2017** — Canadian Institute for Cybersecurity  
-File used: `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv`  
-Download: https://www.unb.ca/cic/datasets/ids-2017.html
+Download: https://www.kaggle.com/datasets/cicdataset/cicids2017
 
-- 225,745 network flows
-- 128,027 DDoS attack flows (56.7%)
-- 97,718 benign flows (43.3%)
-- 78 network features per flow
+| File | Attack Type | Rows |
+|---|---|---|
+| Friday-Afternoon-DDos | DDoS (train) | 225,745 |
+| Tuesday | Brute Force | 445,909 |
+| Wednesday | DoS | 692,703 |
+| Thursday Morning | Web Attacks | 170,366 |
+| Friday Afternoon PortScan | Port Scan | 286,467 |
 
 ---
 
-## Detection Rules (Phase 1)
+## Detection Rules — Phase 1
 
 | Rule | Condition | MITRE ATT&CK |
-|------|-----------|--------------|
+|---|---|---|
 | HIGH_PACKET_RATE | Flow Packets/s > 1,000 | T1498 |
 | HIGH_BYTE_RATE | Flow Bytes/s > 100,000 | T1498.001 |
 | SHORT_BURST_FLOOD | Duration < 5000µs & Fwd Packets > 50 | T1499 |
@@ -57,38 +85,46 @@ Download: https://www.unb.ca/cic/datasets/ids-2017.html
 
 ---
 
-## LSTM Architecture (Phase 2)
+## LSTM Architecture — Phase 2
 
 ```
-Input Layer     → 78 scaled network features (MinMaxScaler)
-LSTM Layer      → 64 units, sequence learning
-Dropout Layer   → 30% dropout (prevents overfitting)
-Dense Layer     → 32 units, ReLU activation
-Output Layer    → 1 unit, Sigmoid (Binary: Attack / Benign)
+Input Layer  → 78 scaled network features (MinMaxScaler)
+LSTM Layer   → 64 units, sequence learning
+Dropout      → 30% (prevents overfitting)
+Dense Layer  → 32 units, ReLU activation
+Output Layer → 1 unit, Sigmoid (Attack / Benign)
 
-Total parameters: 38,721
-Training samples: 180,596
-Test samples:     45,149
-Epochs:           10
+Parameters:  38,721
+Train:       180,596 samples
+Test:        45,149 samples
+Epochs:      10
 ```
+
+---
+
+## SHAP Top Features — Phase 3 & 4
+
+| Attack Type | #1 Feature | #2 Feature | #3 Feature |
+|---|---|---|---|
+| DDoS (trained) | ACK Flag Count | Destination Port | Avg Packet Size |
+| DoS | ACK Flag Count | Fwd IAT Std | Flow IAT Std |
+| Brute Force | min_seg_size_forward | ACK Flag Count | Init_Win_bytes_forward |
+| Web Attacks | Init_Win_bytes_backward | ACK Flag Count | Init_Win_bytes_forward |
+| Port Scan | ACK Flag Count | Init_Win_bytes_forward | Destination Port |
 
 ---
 
 ## Files
 
-```
-network_project/
-│
-├── Network_Threat_Profiling.ipynb     # Phase 1 — Rule-based detection
-├── LSTM_Intrusion_Detection.ipynb     # Phase 2 — LSTM model
-│
-├── security_dashboard.png             # 4-panel detection charts
-├── security_heatmap.png               # Feature correlation heatmap
-├── roc_curve.png                      # ROC-AUC curve (AUC = 0.9999)
-├── threat_alerts.csv                  # 45,514 flagged flows
-├── lstm_intrusion_detection.keras     # Saved LSTM model
-└── findings_report.txt                # Detection findings report
-```
+| File | Description |
+|---|---|
+| `LSTM_Intrusion_Detection.ipynb` | Main notebook — all 4 phases |
+| `lstm_clean_model.keras` | Trained LSTM model |
+| `shap_cross_attack_comparison.png` | Cross-attack SHAP chart (key result) |
+| `shap_feature_importance_clean.png` | DDoS SHAP bar chart |
+| `shap_summary_clean.png` | SHAP summary dot plot |
+| `roc_curve.png` | ROC curve (AUC 0.9999) |
+| `comparison_chart.png` | Rule-based vs LSTM comparison |
 
 ---
 
@@ -96,50 +132,23 @@ network_project/
 
 **Requirements:**
 ```bash
-pip install pandas matplotlib seaborn scikit-learn tensorflow jupyter
+pip install pandas matplotlib seaborn scikit-learn tensorflow shap jupyter
 ```
 
-**Step 1 — Download dataset:**  
-Download `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv` from CICIDS2017 and place it in the project folder.
-
-**Step 2 — Run Phase 1 (Rule-Based):**  
-Open `Network_Threat_Profiling.ipynb` in Jupyter and run all cells.
-
-**Step 3 — Run Phase 2 (LSTM):**  
-Open `LSTM_Intrusion_Detection.ipynb` in Jupyter and run all cells.
-
----
-
-## Key Findings
-
-1. Rule-based detection only caught **37%** of attacks — fixed thresholds cannot adapt to real attack variability.
-2. The LSTM model achieved **99.79% accuracy** and **AUC 0.9999** — detecting virtually every attack with near-zero false alarms.
-3. The **62.79% accuracy improvement** on identical data proves AI-based NIDS is practically superior to rule-based approaches.
-4. The ROC curve hugging the top-left corner confirms the model almost never raises a false alarm and almost never misses a real attack.
-
----
-
-## Technologies Used
-
-- Python 3.11
-- Pandas, NumPy — data processing
-- Matplotlib, Seaborn — visualisation
-- Scikit-learn — preprocessing and evaluation
-- TensorFlow / Keras — LSTM model
-- Jupyter Notebook — development environment
+1. Download CICIDS2017 CSVs from Kaggle and place in project folder
+2. Open `LSTM_Intrusion_Detection.ipynb` in Jupyter
+3. Run all cells in order (Phases 1 → 4)
 
 ---
 
 ## Relation to Security Frameworks
 
-- **MITRE ATT&CK:** Detection rules mapped to T1498 and T1499
-- **ISC2 CC Domain 4:** Network Security — monitoring for anomalies
-- **ISC2 CC Domain 5:** Security Operations — incident detection and response
+- **MITRE ATT&CK:** Rules mapped to T1498 and T1499
+- **ISC2 CC Domain 4:** Network Security — anomaly monitoring
+- **ISC2 CC Domain 5:** Security Operations — incident detection
 
 ---
 
-## Author
+## Technologies
 
-**Mohamed Waseem**  
-Sathyabama Institute of Science and Technology  
-Department of Computer Science and Engineering
+Python 3.11 · TensorFlow/Keras · SHAP · Scikit-learn · Pandas · Matplotlib · Jupyter
